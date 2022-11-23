@@ -1,50 +1,28 @@
-import pandas as pd
 import numpy as np
-from keras.models import Sequential
-from keras.layers import Dense, LSTM, Dropout
-from keras import regularizers
-from keras.metrics import MeanSquaredError
+import pandas as pd
 from numpy.typing import NDArray
 from typing import Any, List, Tuple
 from functools import reduce
+
+from sklearn.feature_selection import SelectKBest, f_regression
 
 NDArray = NDArray[Any]
 NDArrays = List[NDArray]
 
 
-def load_data(file_name):
-    dataset = pd.read_csv(file_name, index_col='ID')
-
-    rand = np.random.rand(len(dataset)) < 0.8
-
-    train = dataset[rand]
-    test = dataset[~rand]
-    X_train = train.drop(labels="VMOS", inplace=False, axis=1)
-    y_train = train["VMOS"]
-
-    X_test = test.drop(labels="VMOS", inplace=False, axis=1)
-    y_test = test["VMOS"]
-
-    return (X_train, y_train), (X_test, y_test)
+def read_raw_dataset(url: str, index_col: str, target_name: str, drop: List[str] = []):
+    dataset = pd.read_csv(url, index_col=index_col)
+    drop_cols = drop + [target_name]
+    X_raw = dataset.drop(labels=drop_cols, axis=1)
+    y = dataset[target_name]
+    return X_raw, y
 
 
-def build_model(number_of_feature):
-    model = Sequential()
-    model.add(LSTM(128, return_sequences=True,
-              input_shape=(number_of_feature, 1)))
-    model.add(Dense(128, activation='relu',
-              activity_regularizer=regularizers.l2(1e-4)))
-    model.add(Dropout(0.2))
-    model.add(Dense(64))
-    model.add(Dropout(0.2))
-    model.add(Dense(32))
-    model.add(Dropout(0.2))
-    # model.add(LSTM(50, return_sequences=False))
-    model.add(Dense(1))
+def select_features(X: pd.DataFrame, y: pd.Series, k=10):
+    selector = SelectKBest(score_func=f_regression, k=k)
+    selector.fit(X, y)
+    return X[X.columns[selector.get_support(indices=True)]], selector
 
-    model.compile(optimizer='adam',
-                  loss='mse', metrics=[MeanSquaredError()])
-    return model
 
 
 def aggregate(results: List[Tuple[NDArrays, int]]) -> NDArrays:
