@@ -1,0 +1,5 @@
+id,user_id,QoA_VLCresolution,QoA_VLCbitrate,QoA_VLCframerate,QoA_VLCdropped,QoA_VLCaudiorate,QoA_VLCaudioloss,QoA_BUFFERINGcount,QoA_BUFFERINGtime,QoS_type,QoS_operator,QoU_sex,QoU_age,QoU_Ustedy,QoF_begin,QoF_shift,QoF_audio,QoF_video,MOS
+732,88,360,424.84918,30.15,1,45.03333333,0,1,3530,2,3,1,24,5,4,5,4,4,4
+734,88,360,408.3867,25.25,0,44.13333333,0,2,1265,3,4,1,24,5,4,5,4,4,4
+731,88,360,834.4832,25.7,1,45.55,0,1,5914,2,3,1,24,5,4,5,4,3,4
+733,88,360,472.47046,24.7,2,44.13333333,0,2,6034,2,3,1,24,5,5,4,5,4,4
