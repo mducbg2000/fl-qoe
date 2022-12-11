@@ -1,108 +1,198 @@
-from dataclasses import dataclass
-from numpy.typing import NDArray
+from pandas import DataFrame, Series
 from functools import reduce
-from typing import Any, List, Optional, Tuple
+from typing import List, Optional, Tuple
 import numpy as np
+from numpy.typing import NDArray
+from abc import ABC, abstractmethod
+from utils import build_model, compute_loss
 
-NDArray = NDArray[Any]
-NDArrays = List[NDArray]
-
-
-@dataclass(frozen=True)
-class ClientParam:
-    layers: NDArrays
-    num_examples: int
+Layers = List[NDArray]
+ClientParam = Tuple[Layers, int]
 
 
-def fed_avg(clients: List[ClientParam]) -> NDArrays:
-    """Compute weighted average."""
-    # Calculate the total number of examples used during training
-    num_examples_total = sum([client.num_examples for client in clients])
+class FedAlgo(ABC):
 
-    # Create a list of weights, each multiplied by the related number of examples
-    weighted_weights = [[
-        layer * client.num_examples for layer in client.layers
-    ] for client in clients]
+    @abstractmethod
+    def name() -> str:
+        pass
 
-    # Compute average weights of each layer
-    weights_prime: NDArrays = [
-        reduce(np.add, layer_updates) / num_examples_total
-        for layer_updates in zip(*weighted_weights)
-    ]
-    return weights_prime
+    @abstractmethod
+    def aggregate(self, clients: List[ClientParam]) -> Layers:
+        pass
 
+    @abstractmethod
+    def predict(self) -> float:
+        pass
 
-def fed_adam(clients: List[ClientParam],
-             old_global_weights: NDArrays,
-             old_m_t: Optional[NDArrays] = None,
-             old_v_t: Optional[NDArrays] = None):
-    fedavg_params_aggregated: NDArrays = fed_avg(clients)
-    delta_t: NDArrays = [
-        x - y for x, y in zip(fedavg_params_aggregated, old_global_weights)
-    ]
-
-    m_t = old_m_t or [np.zeros_like(x) for x in delta_t]
-    new_m_t = [np.multiply(0.9, x) + 0.1 * y for x, y in zip(m_t, delta_t)]
-
-    v_t = old_v_t or [np.zeros_like(x) for x in delta_t]
-    new_v_t = [
-        0.99 * x + 0.01 * np.multiply(y, y) for x, y in zip(v_t, delta_t)
-    ]
-
-    new_weights = [
-        x + (1e-1) * y / (np.sqrt(z) + (1e-9))
-        for x, y, z in zip(old_global_weights, new_m_t, new_v_t)
-    ]
-
-    return new_weights, new_m_t, new_v_t
+    @abstractmethod
+    def get_weights(self) -> Layers:
+        pass
 
 
-def fed_yogi(clients: List[ClientParam],
-             old_global_weights: NDArrays,
-             old_m_t: Optional[NDArrays] = None,
-             old_v_t: Optional[NDArrays] = None):
-    fedavg_params_aggregated: NDArrays = fed_avg(clients)
+class FedAvg(FedAlgo):
 
-    delta_t: NDArrays = [
-        x - y for x, y in zip(fedavg_params_aggregated, old_global_weights)
-    ]
+    def __init__(self, init_weights: Layers, X_test: DataFrame,
+                 y_test: Series) -> None:
+        super().__init__()
+        self.model = build_model()
+        self.model.set_weights(init_weights)
+        self.X_test = X_test
+        self.y_test = y_test
 
-    m_t = old_m_t or [np.zeros_like(x) for x in delta_t]
-    new_m_t = [np.multiply(0.9, x) + 0.1 * y for x, y in zip(m_t, delta_t)]
+    def name():
+        return "FedAvg"
 
-    v_t = old_v_t or [np.zeros_like(x) for x in delta_t]
-    new_v_t = [
-        x - 0.01 * np.multiply(y, y) * np.sign(x - np.multiply(y, y))
-        for x, y in zip(v_t, delta_t)
-    ]
+    def aggregate(self, clients: List[ClientParam]):
+        weights = self.fed_avg(clients)
+        self.model.set_weights(weights)
+        return weights
 
-    new_weights = [
-        x + (1e-1) * y / (np.sqrt(z) + (1e-9))
-        for x, y, z in zip(old_global_weights, new_m_t, new_v_t)
-    ]
+    def predict(self) -> float:
+        return compute_loss(self.model, self.X_test, self.y_test)
 
-    return new_weights, new_m_t, new_v_t
+    def get_weights(self) -> Layers:
+        return self.model.get_weights()
+
+    def fed_avg(self, clients: List[ClientParam]) -> Layers:
+        num_examples_total = sum([num_examples for _, num_examples in clients])
+
+        weighted_weights = [[layer * num_examples for layer in layers]
+                            for layers, num_examples in clients]
+
+        weights_prime: Layers = [
+            reduce(np.add, layer_updates) / num_examples_total
+            for layer_updates in zip(*weighted_weights)
+        ]
+        return weights_prime
 
 
-def fed_adagrad(clients: List[ClientParam],
-                old_global_weights: NDArrays,
-                old_m_t: Optional[NDArrays] = None,
-                old_v_t: Optional[NDArrays] = None):
-    fedavg_params_aggregated: NDArrays = fed_avg(clients)
+class FedAdam(FedAvg):
 
-    delta_t: NDArrays = [
-        x - y for x, y in zip(fedavg_params_aggregated, old_global_weights)
-    ]
+    def __init__(self, init_weights, X_test: DataFrame,
+                 y_test: Series) -> None:
+        super().__init__(init_weights, X_test, y_test)
+        self.m_t = None
+        self.v_t = None
 
-    m_t = old_m_t or [np.zeros_like(x) for x in delta_t]
-    new_m_t = [np.multiply(0, x) + y for x, y in zip(m_t, delta_t)]
+    def name():
+        return "FedAdam"
 
-    v_t = old_v_t or [np.zeros_like(x) for x in delta_t]
-    new_v_t = [x + np.multiply(y, y) for x, y in zip(v_t, delta_t)]
+    def aggregate(self, clients: List[ClientParam]):
+        weights, self.m_t, self.v_t = self.fed_adam(clients,
+                                                    self.model.get_weights(),
+                                                    self.m_t, self.v_t)
+        self.model.set_weights(weights)
+        return weights
 
-    new_weights = [
-        x + (1e-1) * y / (np.sqrt(z) + (1e-9))
-        for x, y, z in zip(old_global_weights, new_m_t, new_v_t)
-    ]
+    def fed_adam(self,
+                 clients: List[ClientParam],
+                 old_global_weights: Layers,
+                 old_m_t: Optional[Layers] = None,
+                 old_v_t: Optional[Layers] = None):
+        fedavg_params_aggregated: Layers = self.fed_avg(clients)
+        delta_t: Layers = [
+            x - y for x, y in zip(fedavg_params_aggregated, old_global_weights)
+        ]
 
-    return new_weights, new_m_t, new_v_t
+        m_t = old_m_t or [np.zeros_like(x) for x in delta_t]
+        new_m_t = [np.multiply(0.9, x) + 0.1 * y for x, y in zip(m_t, delta_t)]
+
+        v_t = old_v_t or [np.zeros_like(x) for x in delta_t]
+        new_v_t = [
+            0.99 * x + 0.01 * np.multiply(y, y) for x, y in zip(v_t, delta_t)
+        ]
+
+        new_weights = [
+            x + (1e-1) * y / (np.sqrt(z) + (1e-9))
+            for x, y, z in zip(old_global_weights, new_m_t, new_v_t)
+        ]
+
+        return new_weights, new_m_t, new_v_t
+
+
+class FedYogi(FedAvg):
+
+    def __init__(self, init_weights, X_test: DataFrame,
+                 y_test: Series) -> None:
+        super().__init__(init_weights, X_test, y_test)
+        self.m_t = None
+        self.v_t = None
+
+    def name():
+        return "FedYogi"
+
+    def aggregate(self, clients: List[ClientParam]):
+        weights, self.m_t, self.v_t = self.fed_yogi(clients,
+                                                    self.model.get_weights(),
+                                                    self.m_t, self.v_t)
+        self.model.set_weights(weights)
+        return weights
+
+    def fed_yogi(self,
+                 clients: List[ClientParam],
+                 old_global_weights: Layers,
+                 old_m_t: Optional[Layers] = None,
+                 old_v_t: Optional[Layers] = None):
+        fedavg_params_aggregated: Layers = self.fed_avg(clients)
+
+        delta_t: Layers = [
+            x - y for x, y in zip(fedavg_params_aggregated, old_global_weights)
+        ]
+
+        m_t = old_m_t or [np.zeros_like(x) for x in delta_t]
+        new_m_t = [np.multiply(0.9, x) + 0.1 * y for x, y in zip(m_t, delta_t)]
+
+        v_t = old_v_t or [np.zeros_like(x) for x in delta_t]
+        new_v_t = [
+            x - 0.01 * np.multiply(y, y) * np.sign(x - np.multiply(y, y))
+            for x, y in zip(v_t, delta_t)
+        ]
+
+        new_weights = [
+            x + (1e-1) * y / (np.sqrt(z) + (1e-9))
+            for x, y, z in zip(old_global_weights, new_m_t, new_v_t)
+        ]
+
+        return new_weights, new_m_t, new_v_t
+
+
+class FedAdagrad(FedAvg):
+
+    def __init__(self, init_weights, X_test: DataFrame,
+                 y_test: Series) -> None:
+        super().__init__(init_weights, X_test, y_test)
+        self.m_t = None
+        self.v_t = None
+
+    def name():
+        return "FedAdagrad"
+
+    def aggregate(self, clients: List[ClientParam]):
+        weights, self.m_t, self.v_t = self.fed_adagrad(
+            clients, self.model.get_weights(), self.m_t, self.v_t)
+        self.model.set_weights(weights)
+        return weights
+
+    def fed_adagrad(self,
+                    clients: List[ClientParam],
+                    old_global_weights: Layers,
+                    old_m_t: Optional[Layers] = None,
+                    old_v_t: Optional[Layers] = None):
+        fedavg_params_aggregated: Layers = self.fed_avg(clients)
+
+        delta_t: Layers = [
+            x - y for x, y in zip(fedavg_params_aggregated, old_global_weights)
+        ]
+
+        m_t = old_m_t or [np.zeros_like(x) for x in delta_t]
+        new_m_t = [np.multiply(0, x) + y for x, y in zip(m_t, delta_t)]
+
+        v_t = old_v_t or [np.zeros_like(x) for x in delta_t]
+        new_v_t = [x + np.multiply(y, y) for x, y in zip(v_t, delta_t)]
+
+        new_weights = [
+            x + (1e-1) * y / (np.sqrt(z) + (1e-9))
+            for x, y, z in zip(old_global_weights, new_m_t, new_v_t)
+        ]
+
+        return new_weights, new_m_t, new_v_t

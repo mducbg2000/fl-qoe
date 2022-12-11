@@ -1,20 +1,17 @@
-import numpy as np
 import pandas as pd
-from numpy.typing import NDArray
-from typing import Any, List, Tuple
-from functools import reduce
+from typing import List, Tuple
 
 from sklearn.feature_selection import SelectKBest, f_regression
-from sklearn.model_selection import train_test_split
-from flwr.server.strategy import FedAvg
-
+from numpy.typing import NDArray
 from keras.models import Sequential
 from keras.layers import LSTM, Dense, Dropout, Bidirectional
 from keras.metrics import MeanSquaredError
+from sklearn.metrics import mean_squared_error
 
-NDArray = NDArray[Any]
-NDArrays = List[NDArray]
 LSTM_MODEL = Sequential
+NUMBER_OF_FEATURES = 10
+Layers = List[NDArray]
+ClientParam = Tuple[Layers, int]
 
 
 def read_raw_dataset(url: str,
@@ -29,19 +26,53 @@ def read_raw_dataset(url: str,
 
 
 def select_features(X: pd.DataFrame, y: pd.Series, k=10):
+    return X[select_features_name(X, y, k)]
+
+
+def select_features_name(X: pd.DataFrame, y: pd.Series, k=10):
     selector = SelectKBest(score_func=f_regression, k=k)
     selector.fit(X, y)
-    return X[X.columns[selector.get_support(indices=True)]]
+    return X.columns[selector.get_support(indices=True)]
 
 
-def read_chunk_and_split(id: int):
-    X_raw, y = read_raw_dataset("datasets/chunk{}.csv".format(id), "ID",
-                                "VMOS")
-    X = select_features(X_raw, y)
-    return train_test_split(X, y, train_size=0.8)
+def read_chunk(dataset: str, chunk_id: int,
+               select_cols) -> Tuple[pd.DataFrame, pd.Series]:
+    index_col = "id" if dataset == 'pokemon' else "ID"
+    target_col = "MOS" if dataset == 'pokemon' else "VMOS"
+    drop_cols = ["user_id"] if dataset == 'pokemon' else []
+    X_raw, y = read_raw_dataset(
+        "datasets/{}/chunk{}.csv".format(dataset, chunk_id), index_col,
+        target_col, drop_cols)
+    return X_raw[select_cols], y
 
 
-def build_model(number_of_feature) -> Sequential:
+def train_with_chunk(init_weights: Layers, dataset: str, chunk_id: int):
+    X_train, y_train = read_chunk(dataset, chunk_id)
+    lstm = build_model(NUMBER_OF_FEATURES)
+    lstm.set_weights(init_weights)
+    lstm.fit(X_train,
+             y_train,
+             validation_split=0.05,
+             batch_size=128,
+             epochs=50,
+             shuffle=True)
+    return ClientParam(lstm.get_weights(), len(X_train))
+
+
+def train_with_data(init_weights: Layers,
+                    dataset: Tuple[pd.DataFrame, pd.Series]) -> ClientParam:
+    lstm = build_model(NUMBER_OF_FEATURES)
+    lstm.set_weights(init_weights)
+    lstm.fit(dataset[0],
+             dataset[1],
+             validation_split=0.05,
+             batch_size=128,
+             epochs=50,
+             shuffle=True)
+    return lstm.get_weights(), len(dataset[0])
+
+
+def build_model(number_of_feature=10) -> Sequential:
     model = Sequential()
     model.add(
         Bidirectional(LSTM(128, return_sequences=False),
@@ -58,18 +89,6 @@ def build_model(number_of_feature) -> Sequential:
     return model
 
 
-def fed_avg(results: List[Tuple[NDArrays, int]]) -> NDArrays:
-    """Compute weighted average."""
-    # Calculate the total number of examples used during training
-    num_examples_total = sum([num_examples for _, num_examples in results])
-
-    # Create a list of weights, each multiplied by the related number of examples
-    weighted_weights = [[layer * num_examples for layer in weights]
-                        for weights, num_examples in results]
-
-    # Compute average weights of each layer
-    weights_prime: NDArrays = [
-        reduce(np.add, layer_updates) / num_examples_total
-        for layer_updates in zip(*weighted_weights)
-    ]
-    return weights_prime
+def compute_loss(model: LSTM_MODEL, X_test, y_test) -> float:
+    y_pred = model.predict(X_test)
+    return mean_squared_error(y_test, y_pred)
