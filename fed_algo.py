@@ -14,7 +14,7 @@ ClientParam = Tuple[Layers, int]
 class FedAlgo(ABC):
 
     @abstractmethod
-    def name() -> str:
+    def name(self) -> str:
         pass
 
     @abstractmethod
@@ -40,7 +40,7 @@ class FedAvg(FedAlgo):
         self.X_test = X_test
         self.y_test = y_test
 
-    def name():
+    def name(self):
         return "FedAvg"
 
     def aggregate(self, clients: List[ClientParam]):
@@ -75,7 +75,7 @@ class FedAdam(FedAvg):
         self.m_t = None
         self.v_t = None
 
-    def name():
+    def name(self):
         return "FedAdam"
 
     def aggregate(self, clients: List[ClientParam]):
@@ -122,7 +122,7 @@ class FedYogi(FedAvg):
         self.m_t = None
         self.v_t = None
 
-    def name():
+    def name(self):
         return "FedYogi"
 
     def aggregate(self, clients: List[ClientParam]):
@@ -166,7 +166,7 @@ class FedAdagrad(FedAvg):
         self.m_t = None
         self.v_t = None
 
-    def name():
+    def name(self):
         return "FedAdagrad"
 
     def aggregate(self, clients: List[ClientParam]):
