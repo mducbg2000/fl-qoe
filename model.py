@@ -39,8 +39,18 @@ def bidirectional_lstm():
 
 def mlp():
     model = Sequential(layers=[
-        Dense(16, input_shape=(10, 1), activation='relu'),
-        Dense(8, activation='relu'),
+        Dense(32, input_shape=(10, 1), activation='relu'),
+        Dense(16, activation='relu'),
+        Dense(8),
+        Dense(1, activation='linear')
+    ])
+    model.compile(optimizer='adam', loss='mse', metrics=[MeanSquaredError()])
+    return model
+
+
+def svr():
+    model = Sequential(layers=[
+        Dense(64, input_shape=(10, 1), activation='relu'),
         Dense(1, activation='linear')
     ])
     model.compile(optimizer='adam', loss='mse', metrics=[MeanSquaredError()])
