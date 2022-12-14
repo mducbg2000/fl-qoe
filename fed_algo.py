@@ -78,36 +78,39 @@ class FedAdam(FedAvg):
         return "FedAdam"
 
     def aggregate(self, clients: List[ClientParam]):
-        weights, self.m_t, self.v_t = self.fed_adam(clients,
-                                                    self.model.get_weights(),
-                                                    self.m_t, self.v_t)
-        self.model.set_weights(weights)
-        return weights
+        return self.fed_adam(clients)
 
-    def fed_adam(self,
-                 clients: List[ClientParam],
-                 old_global_weights: Layers,
-                 old_m_t: Optional[Layers] = None,
-                 old_v_t: Optional[Layers] = None):
+    def fed_adam(
+        self,
+        clients: List[ClientParam],
+    ) -> Layers:
         fedavg_params_aggregated: Layers = self.fed_avg(clients)
+
         delta_t: Layers = [
-            x - y for x, y in zip(fedavg_params_aggregated, old_global_weights)
+            x - y
+            for x, y in zip(fedavg_params_aggregated, self.model.get_weights())
         ]
 
-        m_t = old_m_t or [np.zeros_like(x) for x in delta_t]
-        new_m_t = [np.multiply(0.9, x) + 0.1 * y for x, y in zip(m_t, delta_t)]
+        if not self.m_t:
+            self.m_t = [np.zeros_like(x) for x in delta_t]
+        self.m_t = [
+            np.multiply(0.9, x) + 0.1 * y for x, y in zip(self.m_t, delta_t)
+        ]
 
-        v_t = old_v_t or [np.zeros_like(x) for x in delta_t]
-        new_v_t = [
-            0.99 * x + 0.01 * np.multiply(y, y) for x, y in zip(v_t, delta_t)
+        if not self.v_t:
+            self.v_t = [np.zeros_like(x) for x in delta_t]
+        self.v_t = [
+            0.99 * x + 0.01 * np.multiply(y, y)
+            for x, y in zip(self.v_t, delta_t)
         ]
 
         new_weights = [
             x + (1e-1) * y / (np.sqrt(z) + (1e-9))
-            for x, y, z in zip(old_global_weights, new_m_t, new_v_t)
+            for x, y, z in zip(self.model.get_weights(), self.m_t, self.v_t)
         ]
 
-        return new_weights, new_m_t, new_v_t
+        self.model.set_weights(new_weights)
+        return new_weights
 
 
 class FedYogi(FedAvg):
@@ -122,38 +125,36 @@ class FedYogi(FedAvg):
         return "FedYogi"
 
     def aggregate(self, clients: List[ClientParam]):
-        weights, self.m_t, self.v_t = self.fed_yogi(clients,
-                                                    self.model.get_weights(),
-                                                    self.m_t, self.v_t)
-        self.model.set_weights(weights)
-        return weights
+        return self.fed_yogi(clients)
 
-    def fed_yogi(self,
-                 clients: List[ClientParam],
-                 old_global_weights: Layers,
-                 old_m_t: Optional[Layers] = None,
-                 old_v_t: Optional[Layers] = None):
+    def fed_yogi(self, clients: List[ClientParam]):
         fedavg_params_aggregated: Layers = self.fed_avg(clients)
 
         delta_t: Layers = [
-            x - y for x, y in zip(fedavg_params_aggregated, old_global_weights)
+            x - y
+            for x, y in zip(fedavg_params_aggregated, self.model.get_weights())
         ]
 
-        m_t = old_m_t or [np.zeros_like(x) for x in delta_t]
-        new_m_t = [np.multiply(0.9, x) + 0.1 * y for x, y in zip(m_t, delta_t)]
+        if not self.m_t:
+            self.m_t = [np.zeros_like(x) for x in delta_t]
+        self.m_t = [
+            np.multiply(0.9, x) + 0.1 * y for x, y in zip(self.m_t, delta_t)
+        ]
 
-        v_t = old_v_t or [np.zeros_like(x) for x in delta_t]
-        new_v_t = [
+        if not self.v_t:
+            self.v_t = [np.zeros_like(x) for x in delta_t]
+        self.v_t = [
             x - 0.01 * np.multiply(y, y) * np.sign(x - np.multiply(y, y))
-            for x, y in zip(v_t, delta_t)
+            for x, y in zip(self.v_t, delta_t)
         ]
 
         new_weights = [
             x + (1e-1) * y / (np.sqrt(z) + (1e-9))
-            for x, y, z in zip(old_global_weights, new_m_t, new_v_t)
+            for x, y, z in zip(self.model.get_weights(), self.m_t, self.v_t)
         ]
 
-        return new_weights, new_m_t, new_v_t
+        self.model.set_weights(new_weights)
+        return new_weights
 
 
 class FedAdagrad(FedAvg):
@@ -168,31 +169,30 @@ class FedAdagrad(FedAvg):
         return "FedAdagrad"
 
     def aggregate(self, clients: List[ClientParam]):
-        weights, self.m_t, self.v_t = self.fed_adagrad(
-            clients, self.model.get_weights(), self.m_t, self.v_t)
-        self.model.set_weights(weights)
-        return weights
+        return self.fed_adagrad(clients)
 
-    def fed_adagrad(self,
-                    clients: List[ClientParam],
-                    old_global_weights: Layers,
-                    old_m_t: Optional[Layers] = None,
-                    old_v_t: Optional[Layers] = None):
+    def fed_adagrad(self, clients: List[ClientParam]):
         fedavg_params_aggregated: Layers = self.fed_avg(clients)
 
         delta_t: Layers = [
-            x - y for x, y in zip(fedavg_params_aggregated, old_global_weights)
+            x - y
+            for x, y in zip(fedavg_params_aggregated, self.model.get_weights())
         ]
 
-        m_t = old_m_t or [np.zeros_like(x) for x in delta_t]
-        new_m_t = [np.multiply(0, x) + y for x, y in zip(m_t, delta_t)]
+        if not self.m_t:
+            self.m_t = [np.zeros_like(x) for x in delta_t]
+        self.m_t = [
+            np.multiply(0.9, x) + 0.1 * y for x, y in zip(self.m_t, delta_t)
+        ]
 
-        v_t = old_v_t or [np.zeros_like(x) for x in delta_t]
-        new_v_t = [x + np.multiply(y, y) for x, y in zip(v_t, delta_t)]
+        if not self.v_t:
+            self.v_t = [np.zeros_like(x) for x in delta_t]
+        self.v_t = [x + np.multiply(y, y) for x, y in zip(self.v_t, delta_t)]
 
         new_weights = [
             x + (1e-1) * y / (np.sqrt(z) + (1e-9))
-            for x, y, z in zip(old_global_weights, new_m_t, new_v_t)
+            for x, y, z in zip(self.model.get_weights(), self.m_t, self.v_t)
         ]
 
-        return new_weights, new_m_t, new_v_t
+        self.model.set_weights(new_weights)
+        return new_weights
