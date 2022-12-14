@@ -4,7 +4,8 @@ from typing import List, Optional, Tuple
 import numpy as np
 from numpy.typing import NDArray
 from abc import ABC, abstractmethod
-from utils import build_model, compute_loss
+from utils import compute_loss
+from model import lstm
 
 Layers = List[NDArray]
 ClientParam = Tuple[Layers, int]
@@ -34,7 +35,7 @@ class FedAvg(FedAlgo):
     def __init__(self, init_weights: Layers, X_test: DataFrame,
                  y_test: Series) -> None:
         super().__init__()
-        self.model = build_model()
+        self.model = lstm()
         self.model.set_weights(init_weights)
         self.X_test = X_test
         self.y_test = y_test
