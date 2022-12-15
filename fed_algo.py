@@ -1,10 +1,9 @@
 from pandas import DataFrame, Series
 from functools import reduce
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 import numpy as np
 from numpy.typing import NDArray
 from abc import ABC, abstractmethod
-from utils import compute_loss
 from model import lstm
 
 Layers = List[NDArray]
@@ -62,7 +61,7 @@ class FedAvg(FedAlgo):
         return weights
 
     def predict(self) -> float:
-        return compute_loss(self.model, self.X_test, self.y_test)
+        return self.model.evaluate(self.X_test, self.y_test)[0]
 
     def get_weights(self) -> Layers:
         return self.model.get_weights()
