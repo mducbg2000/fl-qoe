@@ -40,7 +40,7 @@ def bidirectional_lstm():
 def mlp():
     model = Sequential(layers=[
         Dense(32, input_shape=(10, 1), activation='relu'),
-        Dense(16, activation='relu'),
+        Dense(16),
         Dense(8),
         Dense(1, activation='linear')
     ])

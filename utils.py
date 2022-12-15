@@ -54,8 +54,3 @@ def train_with_data(model: Sequential, init_weights: Layers,
               epochs=50,
               shuffle=True)
     return model.get_weights(), len(dataset[0])
-
-
-def compute_loss(model: Sequential, X_test, y_test) -> float:
-    y_pred = model.predict(X_test)
-    return mean_squared_error(y_test, y_pred)
