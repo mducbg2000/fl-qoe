@@ -44,7 +44,7 @@ def read_chunk(dataset: str, chunk_id: int,
     return X_raw[select_cols], y
 
 
-def train_with_data(model: Sequential, init_weights: Layers,
+def train_with_data(model, init_weights: Layers,
                     dataset: Tuple[pd.DataFrame, pd.Series]) -> ClientParam:
     model.set_weights(init_weights)
     model.fit(dataset[0],
