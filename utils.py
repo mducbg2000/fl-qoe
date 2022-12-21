@@ -33,7 +33,7 @@ def select_features_name(X: pd.DataFrame, y: pd.Series, k=10):
     return X.columns[selector.get_support(indices=True)]
 
 
-def read_chunk(dataset: str, chunk_id: int,
+def read_chunk(dataset: str, chunk_id,
                select_cols) -> Tuple[pd.DataFrame, pd.Series]:
     index_col = "id" if dataset == 'pokemon' else "ID"
     target_col = "MOS" if dataset == 'pokemon' else "VMOS"

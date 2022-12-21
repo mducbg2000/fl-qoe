@@ -10,18 +10,12 @@ Layers = List[NDArray]
 
 def lstm():
     model = Sequential(layers=[
-        LSTM(128,
-             input_shape=(10, 1),
-             kernel_initializer=Zeros(),
-             bias_initializer=Zeros()),
-        Dense(128,
-              activation='relu',
-              kernel_initializer=Zeros(),
-              bias_initializer=Zeros()),
+        LSTM(128, input_shape=(10, 1)),
+        Dense(128, activation='relu'),
         Dropout(0.2),
-        Dense(64, kernel_initializer=Zeros(), bias_initializer=Zeros()),
+        Dense(64),
         Dropout(0.2),
-        Dense(32, kernel_initializer=Zeros(), bias_initializer=Zeros()),
+        Dense(32),
         Dropout(0.2),
         Dense(1, activation='linear')
     ])
@@ -35,14 +29,11 @@ def bidirectional_lstm():
                       input_shape=(10, 1),
                       kernel_initializer=Zeros(),
                       bias_initializer=Zeros()),
-        Dense(128,
-              activation='relu',
-              kernel_initializer=Zeros(),
-              bias_initializer=Zeros()),
+        Dense(128, activation='relu'),
         Dropout(0.2),
-        Dense(64, kernel_initializer=Zeros(), bias_initializer=Zeros()),
+        Dense(64),
         Dropout(0.2),
-        Dense(32, kernel_initializer=Zeros(), bias_initializer=Zeros()),
+        Dense(32),
         Dropout(0.2),
         Dense(1, activation='linear')
     ])
@@ -52,19 +43,9 @@ def bidirectional_lstm():
 
 def mlp():
     model = Sequential(layers=[
-        Dense(16,
-              activation='linear',
-              input_shape=(10, 1),
-              kernel_initializer=Zeros(),
-              bias_initializer=Zeros()),
-        Dense(8,
-              activation='relu',
-              kernel_initializer=Zeros(),
-              bias_initializer=Zeros()),
-        Dense(1,
-              activation='linear',
-              kernel_initializer=Zeros(),
-              bias_initializer=Zeros())
+        Dense(16, activation='linear', input_shape=(10, 1)),
+        Dense(8, activation='relu'),
+        Dense(1, activation='linear')
     ])
     model.compile(optimizer='adam', loss='mse', metrics=[MeanSquaredError()])
     return model
@@ -72,18 +53,12 @@ def mlp():
 
 def gru():
     model = Sequential(layers=[
-        GRU(128,
-            input_shape=(10, 1),
-            kernel_initializer=Zeros(),
-            bias_initializer=Zeros()),
-        Dense(128,
-              activation='relu',
-              kernel_initializer=Zeros(),
-              bias_initializer=Zeros()),
+        GRU(128, input_shape=(10, 1)),
+        Dense(128, activation='relu'),
         Dropout(0.2),
-        Dense(64, kernel_initializer=Zeros(), bias_initializer=Zeros()),
+        Dense(64),
         Dropout(0.2),
-        Dense(32, kernel_initializer=Zeros(), bias_initializer=Zeros()),
+        Dense(32),
         Dropout(0.2),
         Dense(1, activation='linear')
     ])

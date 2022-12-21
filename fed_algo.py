@@ -44,10 +44,10 @@ class FedAlgo(ABC):
 
 class FedAvg(FedAlgo):
 
-    def __init__(self, init_weights: Layers, X_test: DataFrame,
+    def __init__(self, model, init_weights: Layers, X_test: DataFrame,
                  y_test: Series) -> None:
         super().__init__()
-        self.model = gru()
+        self.model = model
         self.model.set_weights(init_weights)
         self.X_test = X_test
         self.y_test = y_test
