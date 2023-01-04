@@ -1,0 +1,25 @@
+@startuml architecture
+!theme materia-outline
+
+:u: as "Users <:computer:>" #Blue
+:i: as "ISPs" #Red
+:a: as "ASPs" #Green
+queue s as "Smart Contract <:scroll:>"
+
+u -[dashed]->> s : [1] <:outbox_tray:>
+s -[dashed]->> i : [2] <:inbox_tray:>
+s -[dashed]->> a : [2] <:inbox_tray:>
+i -[#DarkGoldenRod;dotted]->> i : [3] <:triangular_ruler:>
+a -[#DarkGoldenRod;dotted]->> a : [3] <:triangular_ruler:>
+i -[#Red]->> s : [4] <:thumbsdown:>
+a -[#Green]->> s : [4] <:thumbsup:>
+
+note as des
+    <:outbox_tray:>: Upload model
+    <:inbox_tray:>: Download model
+    <:triangular_ruler:>: Evaluate model
+    <:thumbsup:>: Upvote
+    <:thumbsdown:>: Downvote
+end note
+
+@enduml

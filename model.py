@@ -1,7 +1,6 @@
 from keras import Sequential
 from keras.layers import LSTM, Dense, Dropout, Bidirectional, GRU
 from keras.metrics import MeanSquaredError
-from keras.initializers.initializers_v2 import Zeros
 from typing import List
 from numpy.typing import NDArray
 
@@ -25,10 +24,7 @@ def lstm():
 
 def bidirectional_lstm():
     model = Sequential(layers=[
-        Bidirectional(LSTM(128),
-                      input_shape=(10, 1),
-                      kernel_initializer=Zeros(),
-                      bias_initializer=Zeros()),
+        Bidirectional(LSTM(128), input_shape=(10, 1)),
         Dense(128, activation='relu'),
         Dropout(0.2),
         Dense(64),

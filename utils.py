@@ -51,6 +51,6 @@ def train_with_data(model, init_weights: Layers,
               dataset[1],
               validation_split=0.05,
               batch_size=128,
-              epochs=50,
+              epochs=20,
               shuffle=True)
     return model.get_weights(), len(dataset[0])
